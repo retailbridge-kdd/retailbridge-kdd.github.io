@@ -1,0 +1,268 @@
+{
+  "source_file": "deepseek-v4-pro.json",
+  "question_index": 508,
+  "record": {
+    "question": "What is the average original price of the products purchased from Robert A. by the buyer who gave a 5-star review for Robert A.'s Libby's Mixed Vegetables, mentioning their 'soup vibe had just passed'?",
+    "answer": "15.9",
+    "raw_result": [
+      {
+        "AVG(original_price)": 15.9025
+      }
+    ],
+    "atomic_type": "sql",
+    "level": 3,
+    "chain": [
+      {
+        "question": "In a post-cs review for the product 'Libby's Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12)' sold by Robert A., the reviewer mentions that their 'soup vibe had just passed' and gives a rating of 5 out of 5. What is the name of the buyer who wrote this review?",
+        "search_query": "post-cs review 5 stars soup vibe had just passed Libby's Mixed Vegetables Robert A.",
+        "operation_type": "search",
+        "action": "dense_retrieve",
+        "source": "reviews_text",
+        "atomic_type": "text_identify",
+        "generated_by": "deepseek/deepseek-v4-pro",
+        "query_type": "text-only",
+        "chain_role": "middle",
+        "target_entity": "Stanley M.",
+        "target_role": "buyer",
+        "question_entities": {
+          "seller_name": "Robert A.",
+          "product_name": "Libby's Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12)"
+        },
+        "text_filter": {
+          "review_category": "post-cs"
+        },
+        "answer": "Stanley M.",
+        "evidence_content": [
+          {
+            "source": "reviews_text",
+            "content": "Review rating is 5 out of 5.\n\nThe support person was so sweet and totally understood that my soup vibe had just passed, which made the whole return feel really easy. I love that they were so kind and didn't make me feel weird about my change of heart!",
+            "review_id": "FOO-REV-POS-1081",
+            "review_category": "post-cs",
+            "review_rating": "5",
+            "script_id": "FOO-SCR-0061",
+            "seller_id": "S12",
+            "buyer_id": "B62",
+            "product_id": "FOO-B01CLHQZOY",
+            "seller_name": "Robert A.",
+            "buyer_name": "Stanley M.",
+            "product_name": "Libby's Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12)"
+          }
+        ],
+        "exec_status": "TEXT_IDENTIFY OK (1/4 filtered records, answer='Stanley M.')",
+        "validation": {
+          "approved": true,
+          "verdicts": {
+            "_no_id_check": {
+              "approved": true,
+              "issues": []
+            },
+            "anthropic/claude-opus-4.7": {
+              "approved": true,
+              "failed_criteria": [],
+              "issues": []
+            },
+            "openai/gpt-5.5": {
+              "approved": true,
+              "failed_criteria": [],
+              "issues": []
+            }
+          }
+        },
+        "evaluation_sources": [
+          "reviews_text"
+        ],
+        "_triplet_key": [
+          "S12",
+          "B62",
+          "FOO-B01CLHQZOY"
+        ],
+        "_anchor_tier": "buyer",
+        "_anchor_id": "Stanley M.",
+        "raw_result": [
+          {
+            "buyer_name": "Stanley M."
+          }
+        ]
+      },
+      {
+        "question": "What products has Stanley M. purchased from Robert A.?",
+        "operation_type": "filter",
+        "action": "sql_query",
+        "sql_query": "SELECT DISTINCT product_name FROM \"Order\" WHERE seller_name = 'Robert A.' AND buyer_name = 'Stanley M.';",
+        "source": "orders",
+        "atomic_type": "sql",
+        "generated_by": "deepseek/deepseek-v4-pro",
+        "question_entities": {
+          "seller_name": "Robert A.",
+          "buyer_name": "Stanley M."
+        },
+        "query_type": "sql-only",
+        "answer": "Libby's Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12), Jelly Belly 20-Flavor Spring Gift Box, 8.5-oz, SUNMALL 821-2049-A HDD Hard Drive Cable with IR Sensor/Sleep Compatible with MacBook Pro 13 A1278 MD101 MD102, FLYRUN Men's Athletic Ankle Quarter Socks Men Comfort Cushion Moisture Wicking Work Sock 6 Pack",
+        "raw_result": [
+          {
+            "product_name": "Libby's Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12)"
+          },
+          {
+            "product_name": "Jelly Belly 20-Flavor Spring Gift Box, 8.5-oz"
+          },
+          {
+            "product_name": "SUNMALL 821-2049-A HDD Hard Drive Cable with IR Sensor/Sleep Compatible with MacBook Pro 13 A1278 MD101 MD102"
+          },
+          {
+            "product_name": "FLYRUN Men's Athletic Ankle Quarter Socks Men Comfort Cushion Moisture Wicking Work Sock 6 Pack"
+          }
+        ],
+        "exec_status": "SQL OK (4 rows)",
+        "validation": {
+          "approved": true,
+          "verdicts": {
+            "_no_id_check": {
+              "approved": true,
+              "issues": []
+            },
+            "anthropic/claude-opus-4.7": {
+              "approved": true,
+              "failed_criteria": [],
+              "issues": []
+            },
+            "openai/gpt-5.5": {
+              "approved": true,
+              "failed_criteria": [],
+              "issues": []
+            }
+          }
+        },
+        "evaluation_sources": [
+          "orders"
+        ],
+        "_triplet_key": [
+          "S12",
+          "B62",
+          "FOO-B01CLHQZOY"
+        ],
+        "_anchor_tier": "seller",
+        "_anchor_id": "Robert A."
+      },
+      {
+        "question": "What is the average original price of these products?",
+        "operation_type": "aggregate",
+        "action": "sql_query",
+        "sql_query": "SELECT AVG(original_price) FROM Product WHERE product_name IN ('Libby''s Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12)', 'Jelly Belly 20-Flavor Spring Gift Box, 8.5-oz', 'SUNMALL 821-2049-A HDD Hard Drive Cable with IR Sensor/Sleep Compatible with MacBook Pro 13 A1278 MD101 MD102', 'FLYRUN Men''s Athletic Ankle Quarter Socks Men Comfort Cushion Moisture Wicking Work Sock 6 Pack')",
+        "source": "products",
+        "atomic_type": "sql",
+        "generated_by": "deepseek/deepseek-v4-pro",
+        "query_type": "sql-only",
+        "answer": "15.9",
+        "raw_result": [
+          {
+            "AVG(original_price)": 15.9025
+          }
+        ],
+        "exec_status": "SQL OK (1 rows)"
+      }
+    ],
+    "generation_strategy": "answer_linked",
+    "composite_family": "answer_linked",
+    "answer_link_type": "Set",
+    "linked_answer": [
+      "Libby's Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12)",
+      "Jelly Belly 20-Flavor Spring Gift Box, 8.5-oz",
+      "SUNMALL 821-2049-A HDD Hard Drive Cable with IR Sensor/Sleep Compatible with MacBook Pro 13 A1278 MD101 MD102",
+      "FLYRUN Men's Athletic Ankle Quarter Socks Men Comfort Cushion Moisture Wicking Work Sock 6 Pack"
+    ],
+    "linked_answer_col": "product_name",
+    "linked_answer_placeholder": "these products",
+    "used_answers": [
+      "Libby's Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12)",
+      "Jelly Belly 20-Flavor Spring Gift Box, 8.5-oz",
+      "SUNMALL 821-2049-A HDD Hard Drive Cable with IR Sensor/Sleep Compatible with MacBook Pro 13 A1278 MD101 MD102",
+      "FLYRUN Men's Athletic Ankle Quarter Socks Men Comfort Cushion Moisture Wicking Work Sock 6 Pack"
+    ],
+    "hop1_question": "What products has the buyer who gave a 5-star review for Robert A.'s Libby's Mixed Vegetables, mentioning their 'soup vibe had just passed', purchased from Robert A.?",
+    "raw_used_sources": [
+      "reviews_text",
+      "orders",
+      "products"
+    ],
+    "used_sources": [
+      "reviews_text",
+      "orders",
+      "products"
+    ],
+    "unique_sources": [
+      "reviews_text",
+      "orders",
+      "products"
+    ],
+    "n_unique_sources": 3,
+    "source_diversity": "Hetero(sources=3)",
+    "source_origin_trace": [
+      {
+        "hop": 1,
+        "source": "reviews_text",
+        "used_columns": [],
+        "evaluation_sources": [
+          "reviews_text"
+        ]
+      },
+      {
+        "hop": 2,
+        "source": "orders",
+        "used_columns": [
+          "buyer_name",
+          "product_name",
+          "seller_name"
+        ],
+        "evaluation_sources": [
+          "orders"
+        ]
+      },
+      {
+        "hop": 3,
+        "source": "products",
+        "used_columns": [
+          "product_name",
+          "original_price"
+        ],
+        "evaluation_sources": [
+          "products"
+        ]
+      }
+    ],
+    "query_type": "both",
+    "question_entities": {
+      "seller_name": "Robert A.",
+      "product_name": "Libby's Mixed Vegetables | Delicious Vegetable Favorites | Colorful Carrots, Potatoes, Peas, Corn, Green Beans, Celery, Lima Beans | Grown & Made in USA | 8.5 oz (Pack of 12)"
+    },
+    "target_question": "What is the average original price of these products?",
+    "target_question_entities": {},
+    "generated_by": "deepseek/deepseek-v4-pro",
+    "validation": {
+      "approved": true,
+      "verdicts": {
+        "_no_id_check": {
+          "approved": true,
+          "issues": []
+        },
+        "_answer_substantive": {
+          "approved": true,
+          "issues": []
+        },
+        "_chain_integrity": {
+          "approved": true,
+          "issues": []
+        },
+        "anthropic/claude-opus-4.7": {
+          "approved": true,
+          "issues": []
+        },
+        "openai/gpt-5.5": {
+          "approved": true,
+          "issues": []
+        }
+      }
+    },
+    "operation_type": "aggregate",
+    "chain_label": "atomic_answer_entity"
+  }
+}
