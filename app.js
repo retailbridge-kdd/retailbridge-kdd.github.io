@@ -31,10 +31,9 @@ function niceMax(v, step) { return Math.max(step, Math.ceil(v / step) * step); }
 function render() {
   if (!dataset) return;
   // the table shows LLM-judge or routing F1 per slice; API calls always has its own column
-  const callsOpt = metric.querySelector('option[value="calls"]');
-  callsOpt.disabled = callsOpt.hidden = view === 'table';
-  if (view === 'table' && metric.value === 'calls') metric.value = 'judge';
-  const calls = metric.value === 'calls', isF1 = metric.value === 'f1';
+  ['calls', 'all'].forEach(v => { const o = metric.querySelector(`option[value="${v}"]`); o.disabled = o.hidden = view === 'table'; });
+  if (view === 'table' && (metric.value === 'calls' || metric.value === 'all')) metric.value = 'judge';
+  const all = metric.value === 'all', calls = metric.value === 'calls', isF1 = metric.value === 'f1';
   const table = view === 'table';
   slice.disabled = calls || table;
   document.querySelector('.result-panel').classList.toggle('view-table', table);
@@ -54,13 +53,15 @@ function render() {
   if (ihit) { const chip = el('span', 'insight-logo'); const img = el('img'); img.src = `assets/logos/${ihit[1]}.svg`; img.alt = ''; chip.append(img); iname.append(chip); }
   iname.append(chosen.name);
   const rank = rows.filter(r => calls ? r.calls < chosen.calls : r.v > chosen.v).length + 1;
-  document.querySelector('#insight-description').textContent = calls
+  document.querySelector('#insight-description').textContent = all
+    ? `LLM-judge · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length}. Routing F1 ${f1(chosen.f1[index])} · ${chosen.calls.toFixed(2)} API calls per query.`
+    : calls
     ? 'Mean LLM API calls per query. Lower call counts indicate fewer API requests, not necessarily lower monetary cost.'
     : `${isF1 ? 'Routing F1' : 'LLM-judge'} · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length} by ${isF1 ? 'routing F1' : 'LLM-judge'}.`;
 
   const chart = document.querySelector('#chart');
   chart.replaceChildren();
-  chart.className = table ? 'is-table' : calls ? 'is-calls' : 'is-metric';
+  chart.className = table ? 'is-table' : all ? 'is-all' : calls ? 'is-calls' : 'is-metric';
   document.querySelector('#ticks').replaceChildren();
   const legend = document.querySelector('#legend');
   const heading = document.querySelector('#chart-title');
@@ -97,6 +98,38 @@ function render() {
       t.append(tr);
     });
     wrap.append(t); chart.append(wrap);
+  } else if (all) {
+    // small multiples: one row per backbone, each metric on its own scale (no shared axis across units)
+    setHeading(heading, `All metrics · ${slice.options[slice.selectedIndex].text}`, 'Accuracy, sourcing, and API usage at a glance');
+    direction.textContent = 'API CALLS: OVERALL ONLY';
+    legend.innerHTML = '<span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
+    const COLS = [
+      {label: 'LLM-judge accuracy', short: 'LLM-judge', dir: '↑', get: r => r.judge[index], fmt: v => pct(v) + '%', better: (a, b) => a > b},
+      {label: 'Routing F1', short: 'Routing F1', dir: '↑', get: r => r.f1[index], fmt: f1, better: (a, b) => a > b},
+      {label: 'API calls / query', short: 'API calls', dir: '↓', get: r => r.calls, fmt: v => v.toFixed(2), better: (a, b) => a < b},
+    ];
+    COLS.forEach(c => {
+      const vals = rows.map(c.get);
+      c.max = c.dir === '↓' ? niceMax(Math.max(...vals), 4) : niceMax(Math.max(...vals), 0.2);
+      c.best = vals.reduce((b, v) => c.better(v, b) ? v : b);
+    });
+    const head = el('div', 'mm-row mm-head'); head.append(el('span'));
+    COLS.forEach(c => head.append(el('span', '', `${c.label} ${c.dir}`)));
+    chart.append(head);
+    rows.forEach(r => {
+      const row = el('div', 'mm-row' + (r.name === chosenName ? ' selected' : ''));
+      row.append(nameCell(r, chosenName, r === rows[0]));
+      COLS.forEach(c => {
+        const v = c.get(r), cell = el('div', 'mm-cell');
+        cell.dataset.label = `${c.short} ${c.dir}`;
+        cell.title = `${r.name} · ${c.label}: ${c.fmt(v)}`;
+        const track = el('div', 'm-track'); const bar = el('i', 'm-bar ' + r.group.toLowerCase());
+        bar.style.width = `${v / c.max * 100}%`; track.append(bar);
+        cell.append(track, el('b', v === c.best ? 'mm-best' : '', c.fmt(v)));
+        row.append(cell);
+      });
+      chart.append(row);
+    });
   } else if (calls) {
     setHeading(heading, 'API calls per query · Overall', QUESTION.calls);
     direction.textContent = 'FEWER CALLS = LOWER API USAGE';
