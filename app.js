@@ -54,10 +54,10 @@ function render() {
   iname.append(chosen.name);
   const rank = rows.filter(r => calls ? r.calls < chosen.calls : r.v > chosen.v).length + 1;
   document.querySelector('#insight-description').textContent = all
-    ? `LLM-judge · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length}. Routing F1 ${f1(chosen.f1[index])} · ${chosen.calls.toFixed(2)} API calls per query.`
+    ? `Answer accuracy · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length}. Source routing F1 ${f1(chosen.f1[index])} · efficiency ${chosen.calls.toFixed(2)} API calls per query.`
     : calls
     ? 'Mean LLM API calls per query. Lower call counts indicate fewer API requests, not necessarily lower monetary cost.'
-    : `${isF1 ? 'Routing F1' : 'LLM-judge'} · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length} by ${isF1 ? 'routing F1' : 'LLM-judge'}.`;
+    : `${isF1 ? 'Source routing F1' : 'Answer accuracy'} · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length} by ${isF1 ? 'source routing' : 'answer accuracy'}.`;
 
   const chart = document.querySelector('#chart');
   chart.replaceChildren();
@@ -69,15 +69,15 @@ function render() {
   direction.className = '';
 
   if (table) {
-    const mName = isF1 ? 'Routing F1' : 'LLM-judge accuracy (%)';
+    const mName = isF1 ? 'Source routing (F1)' : 'Answer accuracy (LLM-judge, %)';
     setHeading(heading, `${mName} · All slices`, QUESTION[metric.value]);
     direction.className = 'chart-legend hm-legend';
-    direction.innerHTML = `<span class="lg-heat"><i></i>${isF1 ? 'Routing F1' : 'LLM-judge'}: darker = higher</span><span class="lg-calls"><i></i>API calls: darker = more calls</span>`;
+    direction.innerHTML = `<span class="lg-heat"><i></i>${isF1 ? 'Source routing' : 'Answer accuracy'}: darker = higher</span><span class="lg-calls"><i></i>Efficiency (API calls): darker = more calls</span>`;
     legend.replaceChildren();
     const wrap = el('div', 'hm-wrap'); const t = el('table', 'hm');
     const head = el('tr'); const corner = el('th', 'hm-corner'); corner.textContent = ''; head.append(corner);
     SLICES.forEach(i => head.append(el('th', '', SLICE_SHORT[i])));
-    head.append(el('th', 'hm-calls', 'API calls'));
+    head.append(el('th', 'hm-calls', 'Efficiency (calls)'));
     t.append(head);
     const key = isF1 ? 'f1' : 'judge';
     const all = dataset.models.slice().sort((x, y) => y[key][5] - x[key][5]);
@@ -89,7 +89,7 @@ function render() {
         const v = r[key][i], td = el('td', v > 0.5 ? 'dark' : '');
         td.style.background = `rgba(184,76,46,${(0.07 + 0.83 * Math.min(1, v / 0.78)).toFixed(3)})`;
         td.append(el('b', '', isF1 ? f1(v) : pct(v)));
-        td.title = `${r.name} · ${SLICE_SHORT[i]}: ${isF1 ? 'routing F1 ' + f1(v) : 'LLM-judge ' + pct(v) + '%'}`;
+        td.title = `${r.name} · ${SLICE_SHORT[i]}: ${isF1 ? 'source routing F1 ' + f1(v) : 'answer accuracy ' + pct(v) + '%'}`;
         tr.append(td);
       });
       const ct = el('td', 'hm-calls', r.calls.toFixed(2)); const cv = (r.calls - cmin) / (cmax - cmin);
@@ -100,9 +100,9 @@ function render() {
     wrap.append(t); chart.append(wrap);
   } else if (all) {
     // dumbbell: LLM-judge and routing F1 share one 0-1 axis (accuracy 51.1% = 0.511); API calls get their own column and scale
-    setHeading(heading, `All metrics · ${slice.options[slice.selectedIndex].text}`, 'Accuracy, sourcing, and API usage at a glance');
-    direction.textContent = 'API CALLS: OVERALL ONLY';
-    legend.innerHTML = '<span class="lg-dot lg-judge"><i></i>LLM-judge</span><span class="lg-dot lg-f1"><i></i>Routing F1</span><span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
+    setHeading(heading, `All metrics · ${slice.options[slice.selectedIndex].text}`, 'Answer accuracy, source routing, and efficiency at a glance');
+    direction.textContent = 'EFFICIENCY: OVERALL ONLY';
+    legend.innerHTML = '<span class="lg-dot lg-judge"><i></i>Answer accuracy</span><span class="lg-dot lg-f1"><i></i>Source routing</span><span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
     const J = r => r.judge[index], F = r => r.f1[index];
     // dot plot, so the axis need not start at zero: fit it to the data in 0.1 steps
     const sv = rows.flatMap(r => [J(r), F(r)]);
@@ -111,22 +111,22 @@ function render() {
     const cmax = niceMax(Math.max(...rows.map(r => r.calls)), 4);
     const bestJ = Math.max(...rows.map(J)), bestF = Math.max(...rows.map(F)), bestC = Math.min(...rows.map(r => r.calls));
     const head = el('div', 'db-row db-head');
-    const hp = el('span', 'db-hplot'); hp.innerHTML = '<span class="lg-dot lg-judge"><i></i>LLM-judge</span><span class="lg-dot lg-f1"><i></i>Routing F1</span><em>higher is better</em>';
-    head.append(el('span'), hp, el('span', 'db-num', 'LLM-judge'), el('span', 'db-num', 'Routing F1'), el('span', '', 'API calls / query ↓'));
+    const hp = el('span', 'db-hplot'); hp.innerHTML = '<span class="lg-dot lg-judge"><i></i>Answer accuracy</span><span class="lg-dot lg-f1"><i></i>Source routing</span><em>higher is better</em>';
+    head.append(el('span'), hp, el('span', 'db-num', 'Accuracy'), el('span', 'db-num', 'Routing'), el('span', '', 'Efficiency · calls ↓'));
     chart.append(head);
     const at = v => `${(v - lo) / (hi - lo) * 100}%`;
     rows.forEach(r => {
       const j = J(r), f = F(r);
       const row = el('div', 'db-row' + (r.name === chosenName ? ' selected' : ''));
       const plot = el('div', 'db-plot');
-      plot.title = `${r.name} · LLM-judge ${pct(j)}% · Routing F1 ${f1(f)}`;
+      plot.title = `${r.name} · answer accuracy ${pct(j)}% · source routing F1 ${f1(f)}`;
       const line = el('i', 'db-line'); line.style.left = at(Math.min(j, f)); line.style.width = `${Math.abs(j - f) / (hi - lo) * 100}%`;
       const dj = el('i', 'db-dot db-j'); dj.style.left = at(j);
       const df = el('i', 'db-dot db-f'); df.style.left = at(f);
       plot.style.setProperty('--n', nT);
       if (Math.abs(j - f) < (hi - lo) * 0.025) { dj.classList.add('up'); df.classList.add('down'); }
       plot.append(line, dj, df);
-      const cc = el('div', 'mm-cell db-calls'); cc.title = `${r.name}: ${r.calls.toFixed(2)} LLM calls per query`;
+      const cc = el('div', 'mm-cell db-calls'); cc.title = `${r.name} · efficiency: ${r.calls.toFixed(2)} LLM calls per query`;
       const track = el('div', 'm-track'); const bar = el('i', 'm-bar ' + r.group.toLowerCase());
       bar.style.width = `${r.calls / cmax * 100}%`; track.append(bar);
       cc.append(track, el('b', r.calls === bestC ? 'mm-best' : '', r.calls.toFixed(2)));
@@ -141,7 +141,7 @@ function render() {
     for (let i = 0; i <= nT; i++) { const s = el('span', '', (lo + i / 10).toFixed(1)); s.style.left = `${i / nT * 100}%`; ticks.append(s); }
     ax.append(ticks); chart.append(ax);
   } else if (calls) {
-    setHeading(heading, 'API calls per query · Overall', QUESTION.calls);
+    setHeading(heading, 'Efficiency · API calls per query · Overall', QUESTION.calls);
     direction.textContent = 'FEWER CALLS = LOWER API USAGE';
     legend.innerHTML = '<span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
     const max = niceMax(Math.max(...rows.map(r => r.calls)), 4);
@@ -155,7 +155,7 @@ function render() {
     chart.append(axis(max, ''));
   } else {
     // one metric at a time: LLM-judge accuracy (%) or routing F1 (0-1)
-    const M = isF1 ? {name: 'Routing F1', fmt: f1} : {name: 'LLM-judge accuracy', fmt: v => pct(v) + '%'};
+    const M = isF1 ? {name: 'Source routing (F1)', fmt: f1} : {name: 'Answer accuracy (LLM-judge)', fmt: v => pct(v) + '%'};
     setHeading(heading, `${M.name} · ${slice.options[slice.selectedIndex].text}`, QUESTION[metric.value]);
     direction.textContent = NARROW.matches ? 'HIGHER IS BETTER →' : 'HIGHER IS BETTER ↑';
     legend.innerHTML = '<span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
