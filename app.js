@@ -57,7 +57,7 @@ function render() {
     ? `Answer accuracy · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length}. Source routing F1 ${f1(chosen.f1[index])} · efficiency ${chosen.calls.toFixed(2)} API calls per query.`
     : calls
     ? 'Mean LLM API calls per query. Lower call counts indicate fewer API requests, not necessarily lower monetary cost.'
-    : `${isF1 ? 'Source routing F1' : 'Answer accuracy'} · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length} by ${isF1 ? 'source routing' : 'answer accuracy'}.`;
+    : `${isF1 ? 'Source routing F1' : 'Answer accuracy'} · ${slice.options[slice.selectedIndex].text}. Rank ${rank} of ${rows.length} by ${isF1 ? 'source routing F1' : 'answer accuracy'}.`;
 
   const chart = document.querySelector('#chart');
   chart.replaceChildren();
@@ -69,10 +69,10 @@ function render() {
   direction.className = '';
 
   if (table) {
-    const mName = isF1 ? 'Source routing (F1)' : 'Answer accuracy (LLM-judge, %)';
+    const mName = isF1 ? 'Source routing F1' : 'Answer accuracy (LLM-judge, %)';
     setHeading(heading, `${mName} · All slices`, QUESTION[metric.value]);
     direction.className = 'chart-legend hm-legend';
-    direction.innerHTML = `<span class="lg-heat"><i></i>${isF1 ? 'Source routing' : 'Answer accuracy'}: darker = higher</span><span class="lg-calls"><i></i>Efficiency (API calls): darker = more calls</span>`;
+    direction.innerHTML = `<span class="lg-heat"><i></i>${isF1 ? 'Source routing F1' : 'Answer accuracy'}: darker = higher</span><span class="lg-calls"><i></i>Efficiency (API calls): darker = more calls</span>`;
     legend.replaceChildren();
     const wrap = el('div', 'hm-wrap'); const t = el('table', 'hm');
     const head = el('tr'); const corner = el('th', 'hm-corner'); corner.textContent = ''; head.append(corner);
@@ -102,7 +102,7 @@ function render() {
     // dumbbell: LLM-judge and routing F1 share one 0-1 axis (accuracy 51.1% = 0.511); API calls get their own column and scale
     setHeading(heading, `All metrics · ${slice.options[slice.selectedIndex].text}`, 'Answer accuracy, source routing, and efficiency at a glance');
     direction.textContent = 'EFFICIENCY: OVERALL ONLY';
-    legend.innerHTML = '<span class="lg-dot lg-judge"><i></i>Answer accuracy</span><span class="lg-dot lg-f1"><i></i>Source routing</span><span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
+    legend.innerHTML = '<span class="lg-dot lg-judge"><i></i>Answer accuracy</span><span class="lg-dot lg-f1"><i></i>Source routing F1</span><span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
     const J = r => r.judge[index], F = r => r.f1[index];
     // dot plot, so the axis need not start at zero: fit it to the data in 0.1 steps
     const sv = rows.flatMap(r => [J(r), F(r)]);
@@ -111,8 +111,8 @@ function render() {
     const cmax = niceMax(Math.max(...rows.map(r => r.calls)), 4);
     const bestJ = Math.max(...rows.map(J)), bestF = Math.max(...rows.map(F)), bestC = Math.min(...rows.map(r => r.calls));
     const head = el('div', 'db-row db-head');
-    const hp = el('span', 'db-hplot'); hp.innerHTML = '<span class="lg-dot lg-judge"><i></i>Answer accuracy</span><span class="lg-dot lg-f1"><i></i>Source routing</span><em>higher is better</em>';
-    head.append(el('span'), hp, el('span', 'db-num', 'Accuracy'), el('span', 'db-num', 'Routing'), el('span', '', 'Efficiency · calls ↓'));
+    const hp = el('span', 'db-hplot'); hp.innerHTML = '<span class="lg-dot lg-judge"><i></i>Answer accuracy</span><span class="lg-dot lg-f1"><i></i>Source routing F1</span><em>higher is better</em>';
+    head.append(el('span'), hp, el('span', 'db-num', 'Accuracy'), el('span', 'db-num', 'Routing F1'), el('span', '', 'Efficiency · calls ↓'));
     chart.append(head);
     const at = v => `${(v - lo) / (hi - lo) * 100}%`;
     rows.forEach(r => {
@@ -155,7 +155,7 @@ function render() {
     chart.append(axis(max, ''));
   } else {
     // one metric at a time: LLM-judge accuracy (%) or routing F1 (0-1)
-    const M = isF1 ? {name: 'Source routing (F1)', fmt: f1} : {name: 'Answer accuracy (LLM-judge)', fmt: v => pct(v) + '%'};
+    const M = isF1 ? {name: 'Source routing F1', fmt: f1} : {name: 'Answer accuracy (LLM-judge)', fmt: v => pct(v) + '%'};
     setHeading(heading, `${M.name} · ${slice.options[slice.selectedIndex].text}`, QUESTION[metric.value]);
     direction.textContent = NARROW.matches ? 'HIGHER IS BETTER →' : 'HIGHER IS BETTER ↑';
     legend.innerHTML = '<span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
