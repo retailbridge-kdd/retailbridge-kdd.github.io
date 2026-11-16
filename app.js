@@ -99,37 +99,47 @@ function render() {
     });
     wrap.append(t); chart.append(wrap);
   } else if (all) {
-    // small multiples: one row per backbone, each metric on its own scale (no shared axis across units)
+    // dumbbell: LLM-judge and routing F1 share one 0-1 axis (accuracy 51.1% = 0.511); API calls get their own column and scale
     setHeading(heading, `All metrics · ${slice.options[slice.selectedIndex].text}`, 'Accuracy, sourcing, and API usage at a glance');
     direction.textContent = 'API CALLS: OVERALL ONLY';
-    legend.innerHTML = '<span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
-    const COLS = [
-      {label: 'LLM-judge accuracy', short: 'LLM-judge', dir: '↑', get: r => r.judge[index], fmt: v => pct(v) + '%', better: (a, b) => a > b},
-      {label: 'Routing F1', short: 'Routing F1', dir: '↑', get: r => r.f1[index], fmt: f1, better: (a, b) => a > b},
-      {label: 'API calls / query', short: 'API calls', dir: '↓', get: r => r.calls, fmt: v => v.toFixed(2), better: (a, b) => a < b},
-    ];
-    COLS.forEach(c => {
-      const vals = rows.map(c.get);
-      c.max = c.dir === '↓' ? niceMax(Math.max(...vals), 4) : niceMax(Math.max(...vals), 0.2);
-      c.best = vals.reduce((b, v) => c.better(v, b) ? v : b);
-    });
-    const head = el('div', 'mm-row mm-head'); head.append(el('span'));
-    COLS.forEach(c => head.append(el('span', '', `${c.label} ${c.dir}`)));
+    legend.innerHTML = '<span class="lg-dot lg-judge"><i></i>LLM-judge</span><span class="lg-dot lg-f1"><i></i>Routing F1</span><span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
+    const J = r => r.judge[index], F = r => r.f1[index];
+    // dot plot, so the axis need not start at zero: fit it to the data in 0.1 steps
+    const sv = rows.flatMap(r => [J(r), F(r)]);
+    const lo = Math.max(0, Math.floor((Math.min(...sv) - 0.02) * 10) / 10), hi = Math.min(1, Math.ceil((Math.max(...sv) + 0.02) * 10) / 10);
+    const nT = Math.round((hi - lo) * 10);
+    const cmax = niceMax(Math.max(...rows.map(r => r.calls)), 4);
+    const bestJ = Math.max(...rows.map(J)), bestF = Math.max(...rows.map(F)), bestC = Math.min(...rows.map(r => r.calls));
+    const head = el('div', 'db-row db-head');
+    const hp = el('span', 'db-hplot'); hp.innerHTML = '<span class="lg-dot lg-judge"><i></i>LLM-judge</span><span class="lg-dot lg-f1"><i></i>Routing F1</span><em>higher is better</em>';
+    head.append(el('span'), hp, el('span', 'db-num', 'LLM-judge'), el('span', 'db-num', 'Routing F1'), el('span', '', 'API calls / query ↓'));
     chart.append(head);
+    const at = v => `${(v - lo) / (hi - lo) * 100}%`;
     rows.forEach(r => {
-      const row = el('div', 'mm-row' + (r.name === chosenName ? ' selected' : ''));
-      row.append(nameCell(r, chosenName, r === rows[0]));
-      COLS.forEach(c => {
-        const v = c.get(r), cell = el('div', 'mm-cell');
-        cell.dataset.label = `${c.short} ${c.dir}`;
-        cell.title = `${r.name} · ${c.label}: ${c.fmt(v)}`;
-        const track = el('div', 'm-track'); const bar = el('i', 'm-bar ' + r.group.toLowerCase());
-        bar.style.width = `${v / c.max * 100}%`; track.append(bar);
-        cell.append(track, el('b', v === c.best ? 'mm-best' : '', c.fmt(v)));
-        row.append(cell);
-      });
+      const j = J(r), f = F(r);
+      const row = el('div', 'db-row' + (r.name === chosenName ? ' selected' : ''));
+      const plot = el('div', 'db-plot');
+      plot.title = `${r.name} · LLM-judge ${pct(j)}% · Routing F1 ${f1(f)}`;
+      const line = el('i', 'db-line'); line.style.left = at(Math.min(j, f)); line.style.width = `${Math.abs(j - f) / (hi - lo) * 100}%`;
+      const dj = el('i', 'db-dot db-j'); dj.style.left = at(j);
+      const df = el('i', 'db-dot db-f'); df.style.left = at(f);
+      plot.style.setProperty('--n', nT);
+      if (Math.abs(j - f) < (hi - lo) * 0.025) { dj.classList.add('up'); df.classList.add('down'); }
+      plot.append(line, dj, df);
+      const cc = el('div', 'mm-cell db-calls'); cc.title = `${r.name}: ${r.calls.toFixed(2)} LLM calls per query`;
+      const track = el('div', 'm-track'); const bar = el('i', 'm-bar ' + r.group.toLowerCase());
+      bar.style.width = `${r.calls / cmax * 100}%`; track.append(bar);
+      cc.append(track, el('b', r.calls === bestC ? 'mm-best' : '', r.calls.toFixed(2)));
+      const nj = el('b', 'db-num db-vj' + (j === bestJ ? ' mm-best' : ''), pct(j) + '%');
+      const nf = el('b', 'db-num db-vf' + (f === bestF ? ' mm-best' : ''), f1(f));
+      row.append(nameCell(r, chosenName, r === rows[0]), plot, nj, nf, cc);
       chart.append(row);
     });
+    const ax = el('div', 'db-row db-axis'); ax.append(el('span'));
+    const ticks = el('div', 'm-ticks');
+    ticks.classList.add('db-ticks');
+    for (let i = 0; i <= nT; i++) { const s = el('span', '', (lo + i / 10).toFixed(1)); s.style.left = `${i / nT * 100}%`; ticks.append(s); }
+    ax.append(ticks); chart.append(ax);
   } else if (calls) {
     setHeading(heading, 'API calls per query · Overall', QUESTION.calls);
     direction.textContent = 'FEWER CALLS = LOWER API USAGE';

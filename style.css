@@ -634,3 +634,21 @@ footer small.copyright{margin-left:auto}
 .mm-cell b{text-align:right;font-variant-numeric:tabular-nums;font-size:calc(15px*var(--s));font-weight:500;color:var(--ink)}
 .mm-cell b.mm-best{font-weight:800}
 @media(max-width:760px){.mm-row{grid-template-columns:1fr;gap:calc(4px*var(--s));padding:calc(10px*var(--s)) 0;border-bottom:1px solid var(--line)}.mm-head{display:none}.mm-cell{grid-template-columns:calc(118px*var(--s)) minmax(0,1fr) calc(54px*var(--s))}.mm-cell::before{content:attr(data-label);font-size:calc(12px*var(--s));color:var(--muted)}.mm-cell .m-track{height:calc(18px*var(--s))}}
+/* All-metrics dumbbell: LLM-judge (rust) and routing F1 (blue) on one 0-1 axis; API calls column on its own scale */
+.db-row{display:grid;grid-template-columns:calc(200px*var(--s)) minmax(0,1fr) calc(88px*var(--s)) calc(92px*var(--s)) calc(210px*var(--s));gap:calc(16px*var(--s));align-items:center;min-height:calc(42px*var(--s));padding:0 calc(6px*var(--s))}
+.db-row.selected{background:linear-gradient(90deg,#f7efe9,transparent 70%);border-radius:calc(8px*var(--s))}
+.db-head{min-height:0;padding-bottom:calc(8px*var(--s));margin-bottom:calc(4px*var(--s));border-bottom:1px solid var(--line);font-size:calc(12.5px*var(--s));font-weight:700;letter-spacing:calc(.6px*var(--s));text-transform:uppercase;color:var(--muted)}
+.db-hplot{display:flex;flex-wrap:wrap;align-items:center;gap:calc(4px*var(--s)) calc(14px*var(--s))}.db-hplot em{font-style:normal;font-weight:500;text-transform:none;letter-spacing:0;color:#9a8f88}
+.db-num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+b.db-num{font-size:calc(15px*var(--s));font-weight:500;color:var(--ink)}b.db-num.mm-best{font-weight:800}
+.db-plot{position:relative;height:calc(28px*var(--s));background:linear-gradient(90deg,#ece6e1 0 1px,transparent 1px) 0 0/calc(100% / var(--n,4)) 100% repeat-x;border-right:1px solid #ece6e1;cursor:default}
+.db-line{position:absolute;top:50%;height:calc(3px*var(--s));transform:translateY(-50%);background:#cfc4bc;border-radius:2px;transition:left .45s ease,width .45s ease}
+.db-dot{position:absolute;top:50%;width:calc(14px*var(--s));height:calc(14px*var(--s));border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #fff;transition:left .45s ease}
+.db-j{background:#b84c2e}.db-dot.up{top:calc(50% - 5px*var(--s))}.db-dot.down{top:calc(50% + 5px*var(--s))}.db-ticks span{transform:translateX(-50%)!important}.db-ticks span:first-child{transform:none!important}.db-ticks span:last-child{transform:translateX(-100%)!important}.db-f{background:#2a6fb0}
+.lg-dot i{border-radius:50%!important;width:calc(9px*var(--s))!important;height:calc(9px*var(--s))!important}
+.lg-judge i{background:#b84c2e!important}.lg-f1 i{background:#2a6fb0!important}
+.lg-dot{display:inline-flex;align-items:center;gap:calc(6px*var(--s))}.lg-dot i{display:inline-block}
+.db-axis{min-height:0;margin-top:calc(6px*var(--s))}.db-axis .m-ticks{grid-column:2}
+@media(max-width:760px){.db-row{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"n n n" "p p p" "j f c";gap:calc(6px*var(--s)) calc(10px*var(--s));padding:calc(10px*var(--s)) 0;border-bottom:1px solid var(--line)}.db-row>.m-name{grid-area:n}.db-plot{grid-area:p}.db-vj{grid-area:j}.db-vf{grid-area:f}.db-calls{grid-area:c;grid-template-columns:1fr}.db-calls .m-track{display:none}.db-head{display:none}b.db-num,.db-calls b{text-align:left;font-size:calc(14px*var(--s))}.db-vj::before{content:'Judge ';font-weight:400;color:var(--muted);font-size:calc(12px*var(--s))}.db-vf::before{content:'F1 ';font-weight:400;color:var(--muted);font-size:calc(12px*var(--s))}.db-calls b::before{content:'Calls ';font-weight:400;color:var(--muted);font-size:calc(12px*var(--s))}.db-axis{grid-template-areas:"t t t";border:0}.db-axis>span{display:none}.db-axis .m-ticks{grid-area:t}}
+
+@media(max-width:760px){.db-ticks span{display:inline!important}.db-ticks span:nth-child(even){display:none!important}}
