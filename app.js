@@ -248,7 +248,14 @@ function renderCost() {
   // Pareto frontier: best accuracy reachable at or below each cost
   const byCost = [...pts].sort((a, b) => a.cost - b.cost); let best = -1; const front = [];
   byCost.forEach(p => { if (p.acc > best) { best = p.acc; front.push(p); } });
-  if (front.length > 1) svg.append(sv('polyline', {class: 'c-pareto', points: front.map(p => `${X(p.cost)},${Y(p.acc)}`).join(' ')}));
+  // a frontier line only says something once it passes three or more backbones
+  const showLine = front.length >= 3;
+  if (showLine) svg.append(sv('polyline', {class: 'c-pareto', points: front.map(p => `${X(p.cost)},${Y(p.acc)}`).join(' ')}));
+  const legendLine = document.querySelector('#cost-legend .cl-pareto'); if (legendLine) legendLine.hidden = !showLine;
+  // short tags instead: the most accurate backbone, and the cheapest backbone on the frontier
+  const mostAcc = front[front.length - 1], bestValue = front[0];
+  const TAG = new Map([[mostAcc.name, 'Most accurate']]);
+  if (bestValue !== mostAcc) TAG.set(bestValue.name, 'Best value');
   // markers: the brand logo in a white chip; ring colour = open-source / proprietary,
   // dashed ring = estimated cost. Names sit beside the chip, placed to avoid overlaps.
   const R = narrow ? 9 : 13, LOGO = narrow ? 11 : 16, LH = narrow ? 16 : 19, CW = narrow ? 6.6 : 7.8;
@@ -258,7 +265,7 @@ function renderCost() {
   const topAcc = Math.max(...pts.map(p => p.acc));
   const labels = [];
   [...pts].sort((a, b) => b.acc - a.acc).forEach(p => {
-    const x = X(p.cost), y = Y(p.acc), lw = p.name.length * CW;
+    const tag = TAG.get(p.name), x = X(p.cost), y = Y(p.acc), lw = p.name.length * CW + (tag && !narrow ? tag.length * CW * 0.82 + 18 : 0);
     const cands = [];
     for (const dy of [0, -0.9, 0.9, -1.8, 1.8]) for (const side of [1, -1])
       cands.push({side, x: side > 0 ? x + R + 7 : x - R - 7 - lw, y: y - LH / 2 + dy * LH, w: lw, h: LH});
@@ -272,8 +279,10 @@ function renderCost() {
       const ex = spot.side > 0 ? spot.x - 3 : spot.x + spot.w + 3, ang = Math.atan2(cy - y, ex - x);
       svg.append(sv('line', {class: 'c-lead', x1: x + Math.cos(ang) * (R + 1), y1: y + Math.sin(ang) * (R + 1), x2: ex, y2: cy}));
     }
-    svg.append(sv('text', {class: 'c-lab' + (p.acc === topAcc ? ' top' : ''), x: tx, y: spot.y + spot.h / 2 + 5,
-      'text-anchor': spot.side > 0 ? 'start' : 'end'}, p.name));
+    const t = sv('text', {class: 'c-lab' + (TAG.has(p.name) ? ' top' : ''), x: tx, y: spot.y + spot.h / 2 + 5,
+      'text-anchor': spot.side > 0 ? 'start' : 'end'}, p.name);
+    if (TAG.has(p.name)) t.append(sv('tspan', {class: 'c-tag', dx: 8}, TAG.get(p.name)));
+    svg.append(t);
   });
   // draw higher-accuracy chips last so they sit on top where they touch
   [...pts].sort((a, b) => a.acc - b.acc).forEach(p => {
