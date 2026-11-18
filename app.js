@@ -1,11 +1,11 @@
 'use strict';
-// Results: LLM-judge accuracy (Table 4) and source routing F1 (Table 5) per backbone, as a chart or a heatmap.
+// Results: LLM-judge accuracy (Muse Ember) and source routing F1 per backbone, as a chart or a heatmap.
 let dataset, selectedModel = null, view = 'chart';
 const metric = document.querySelector('#metric');
 const slice = document.querySelector('#slice');
 const SLICES = [5, 0, 1, 2, 3, 4];
 const SLICE_SHORT = {5: 'Overall', 0: 'L1', 1: 'L2 · single', 2: 'L2 · multi', 3: 'L3 · single', 4: 'L3 · multi'};
-const LOGOS = [[/^GPT/, 'openai'], [/^Gemma/, 'gemma-color'], [/^Gemini/, 'gemini-color'], [/^DeepSeek/, 'deepseek-color'], [/^Kimi/, 'kimi-color'], [/^Qwen/, 'qwen-color']];
+const LOGOS = [[/^GPT/, 'openai'], [/^Gemma/, 'gemma-color'], [/^Gemini/, 'gemini-color'], [/^DeepSeek/, 'deepseek-color'], [/^Kimi/, 'kimi-color'], [/^Qwen/, 'qwen-color'], [/^Claude/, 'claude-color'], [/^MiMo/, 'xiaomimimo'], [/^GLM/, 'zai']];
 const pct = v => (v * 100).toFixed(1);
 const f1 = v => v.toFixed(3);
 const NARROW = window.matchMedia('(max-width: 760px)');
@@ -161,10 +161,12 @@ function render() {
     legend.innerHTML = '<span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
     const vmax = niceMax(Math.max(...rows.map(r => r.v)), 0.2);
     const tick = v => isF1 ? (Math.round(v * 10) / 10).toFixed(1) : Math.round(v * 100) + '%';
-    if (!NARROW.matches) {
+    // vertical bars only when every backbone gets a column wide enough for its label
+    if (!NARROW.matches && chart.clientWidth >= rows.length * 64) {
       const plot = el('div', 'vb vb-single'); const yax = el('div', 'vb-y');
       [4, 3, 2, 1, 0].forEach(i => yax.append(el('span', '', tick(vmax * i / 4))));
       const grid = el('div', 'vb-grid'); const labs = el('div', 'vb-lab');
+      grid.style.gridTemplateColumns = labs.style.gridTemplateColumns = `repeat(${rows.length},minmax(0,1fr))`; // one column per backbone
       rows.forEach(r => {
         const col = el('div', 'vb-col ' + r.group.toLowerCase() + (r.name === chosenName ? ' selected' : ''));
         const b = el('i', 'vb-b j'); b.style.height = `${r.v / vmax * 100}%`;
@@ -200,6 +202,7 @@ document.querySelectorAll('.res-tabs [data-view]').forEach(b => b.addEventListen
   render();
 }));
 NARROW.addEventListener('change', render);
+let resizeTimer; window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (dataset) render(); }, 150); });
 metric.addEventListener('change', render); slice.addEventListener('change', render);
 fetch('results.json').then(r => { if (!r.ok) throw Error('Data unavailable'); return r.json(); }).then(d => { dataset = d; render(); }).catch(() => { document.querySelector('#chart').innerHTML = '<p>Results could not load. <a href="https://arxiv.org/pdf/2610.25096v2">View the published tables in the paper ↗</a></p>'; });
 document.querySelector('#copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(document.querySelector('#bib').textContent); document.querySelector('#copy-status').textContent = 'BibTeX copied.'; } catch { const range = document.createRange(); range.selectNodeContents(document.querySelector('#bib')); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); document.querySelector('#copy-status').textContent = 'Citation selected. Press Ctrl+C (or ⌘C) to copy.'; } });
