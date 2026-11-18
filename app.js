@@ -221,61 +221,70 @@ function renderCost() {
   box.replaceChildren();
   if (!pts.length) return;
   const W = Math.max(320, box.clientWidth), narrow = W < 640;
-  const H = narrow ? 560 : 470, M = {l: narrow ? 52 : 56, r: narrow ? 8 : 24, t: 14, b: narrow ? 44 : 52};
-  const lx0 = Math.log10(Math.min(...pts.map(p => p.cost)) / 1.6), lx1 = Math.log10(Math.max(...pts.map(p => p.cost)) * 1.6);
-  const y0 = Math.max(0, Math.floor((Math.min(...pts.map(p => p.acc)) - 0.03) * 10) / 10), y1 = Math.min(1, Math.ceil((Math.max(...pts.map(p => p.acc)) + 0.03) * 10) / 10);
+  const H = narrow ? 520 : 500, M = {l: narrow ? 48 : 58, r: narrow ? 10 : 30, t: 20, b: narrow ? 46 : 54};
+  // axes fitted to the data: log x with a little padding, y in 5-point steps
+  const lx0 = Math.log10(Math.min(...pts.map(p => p.cost)) / 1.35), lx1 = Math.log10(Math.max(...pts.map(p => p.cost)) * 1.35);
+  const y0 = Math.floor((Math.min(...pts.map(p => p.acc)) - 0.02) * 20) / 20, y1 = Math.ceil((Math.max(...pts.map(p => p.acc)) + 0.02) * 20) / 20;
   const X = v => M.l + (Math.log10(v) - lx0) / (lx1 - lx0) * (W - M.l - M.r);
   const Y = v => M.t + (1 - (v - y0) / (y1 - y0)) * (H - M.t - M.b);
   const svg = sv('svg', {viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Scatter plot of answer accuracy against cost per query for each LLM backbone'});
-  // quadrant: cheaper and more accurate than the median backbone
-  const mc = median(pts.map(p => p.cost)), ma = median(pts.map(p => p.acc));
-  svg.append(sv('rect', {class: 'c-quad', x: M.l, y: M.t, width: X(mc) - M.l, height: Y(ma) - M.t}));
-  // grid + axes
   const gy = sv('g', {class: 'cy-axis'});
   for (let v = y0; v <= y1 + 1e-9; v += 0.05) {
-    const y = Y(v); svg.append(sv('line', {class: 'c-grid', x1: M.l, x2: W - M.r, y1: y, y2: y}));
-    gy.append(sv('text', {x: M.l - 8, y: y + 4, 'text-anchor': 'end'}, Math.round(v * 100) + '%'));
+    const y = Y(v), major = Math.round(v * 100) % 10 === 0;
+    svg.append(sv('line', {class: 'c-grid' + (major ? '' : ' minor'), x1: M.l, x2: W - M.r, y1: y, y2: y}));
+    if (major || !narrow) gy.append(sv('text', {x: M.l - 10, y: y + 4, 'text-anchor': 'end'}, Math.round(v * 100) + '%'));
   }
   const gx = sv('g', {class: 'cx-axis'});
   for (let e = Math.floor(lx0); e <= Math.ceil(lx1); e++) [1, 2, 5].forEach(k => {
     const v = k * 10 ** e; if (Math.log10(v) < lx0 || Math.log10(v) > lx1) return;
+    const x = X(v);
+    svg.append(sv('line', {class: 'c-grid' + (k === 1 ? '' : ' minor'), x1: x, x2: x, y1: M.t, y2: H - M.b}));
     if (narrow && k === 2) return;
-    const x = X(v); svg.append(sv('line', {class: 'c-grid', x1: x, x2: x, y1: M.t, y2: H - M.b}));
-    gx.append(sv('text', {x, y: H - M.b + 18, 'text-anchor': 'middle'}, '$' + (v >= 1 ? v : +v.toPrecision(1))));
+    gx.append(sv('text', {x, y: H - M.b + 20, 'text-anchor': 'middle'}, '$' + (v >= 1 ? v : +v.toPrecision(1))));
   });
-  svg.append(gy, gx);
-  svg.append(sv('text', {class: 'cx-title', x: (M.l + W - M.r) / 2, y: H - 8, 'text-anchor': 'middle'}, 'Cost per query (USD, log scale)'));
-  svg.append(sv('text', {class: 'cy-title', x: -(M.t + H - M.b) / 2, y: narrow ? 10 : 13, transform: 'rotate(-90)', 'text-anchor': 'middle'}, 'Answer accuracy'));
+  svg.append(sv('line', {class: 'c-base', x1: M.l, x2: W - M.r, y1: H - M.b, y2: H - M.b}), gy, gx);
+  svg.append(sv('text', {class: 'cx-title', x: (M.l + W - M.r) / 2, y: H - 6, 'text-anchor': 'middle'}, 'Cost per query (USD, log scale)'));
+  svg.append(sv('text', {class: 'cy-title', x: -(M.t + H - M.b) / 2, y: narrow ? 11 : 14, transform: 'rotate(-90)', 'text-anchor': 'middle'}, 'Answer accuracy'));
   // Pareto frontier: best accuracy reachable at or below each cost
   const byCost = [...pts].sort((a, b) => a.cost - b.cost); let best = -1; const front = [];
   byCost.forEach(p => { if (p.acc > best) { best = p.acc; front.push(p); } });
-  svg.append(sv('polyline', {class: 'c-pareto', points: front.map(p => `${X(p.cost)},${Y(p.acc)}`).join(' ')}));
-  // points first, then labels placed to avoid both other labels and points
-  const R = narrow ? 4.5 : 6.5, LH = narrow ? 14 : 15, CW = narrow ? 6.4 : 7;
+  if (front.length > 1) svg.append(sv('polyline', {class: 'c-pareto', points: front.map(p => `${X(p.cost)},${Y(p.acc)}`).join(' ')}));
+  // markers: the brand logo in a white chip; ring colour = open-source / proprietary,
+  // dashed ring = estimated cost. Names sit beside the chip, placed to avoid overlaps.
+  const R = narrow ? 9 : 13, LOGO = narrow ? 11 : 16, LH = narrow ? 16 : 19, CW = narrow ? 6.6 : 7.8;
   const boxes = pts.map(p => ({x: X(p.cost) - R - 2, y: Y(p.acc) - R - 2, w: 2 * R + 4, h: 2 * R + 4}));
   const hits = b => boxes.some(o => b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y);
-  const inside = b => b.x >= M.l && b.x + b.w <= W - M.r && b.y >= M.t && b.y + b.h <= H - M.b;
+  const inside = b => b.x >= M.l + 2 && b.x + b.w <= W - M.r && b.y >= M.t - 8 && b.y + b.h <= H - M.b - 2;
+  const topAcc = Math.max(...pts.map(p => p.acc));
   const labels = [];
   [...pts].sort((a, b) => b.acc - a.acc).forEach(p => {
     const x = X(p.cost), y = Y(p.acc), lw = p.name.length * CW;
-    // candidate spots: right/left of the point, then stepping down/up
     const cands = [];
-    for (const dy of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5]) for (const side of [1, -1])
-      cands.push({side, x: side > 0 ? x + R + 4 : x - R - 4 - lw, y: y - LH / 2 + dy * LH, w: lw, h: LH});
+    for (const dy of [0, -0.9, 0.9, -1.8, 1.8]) for (const side of [1, -1])
+      cands.push({side, x: side > 0 ? x + R + 7 : x - R - 7 - lw, y: y - LH / 2 + dy * LH, w: lw, h: LH});
     const spot = cands.find(b => inside(b) && !hits(b)) || cands[0];
-    boxes.push(spot);
-    labels.push({p, x, y, spot});
+    boxes.push(spot); labels.push({p, x, y, spot});
   });
   if (!narrow) labels.forEach(({p, x, y, spot}) => {
-    const ty = spot.y + spot.h / 2 + 4, tx = spot.side > 0 ? spot.x : spot.x + spot.w;
-    if (Math.abs(spot.y + spot.h / 2 - y) > 2) svg.append(sv('line', {class: 'c-lead', x1: x, y1: y, x2: spot.side > 0 ? spot.x - 1 : spot.x + spot.w + 1, y2: spot.y + spot.h / 2}));
-    svg.append(sv('text', {class: 'c-lab', x: tx, y: ty, 'text-anchor': spot.side > 0 ? 'start' : 'end'}, p.name));
+    const tx = spot.side > 0 ? spot.x : spot.x + spot.w, cy = spot.y + spot.h / 2;
+    if (Math.abs(cy - y) > 4) {
+      // label moved off the chip's row: connect it so the pairing stays clear
+      const ex = spot.side > 0 ? spot.x - 3 : spot.x + spot.w + 3, ang = Math.atan2(cy - y, ex - x);
+      svg.append(sv('line', {class: 'c-lead', x1: x + Math.cos(ang) * (R + 1), y1: y + Math.sin(ang) * (R + 1), x2: ex, y2: cy}));
+    }
+    svg.append(sv('text', {class: 'c-lab' + (p.acc === topAcc ? ' top' : ''), x: tx, y: spot.y + spot.h / 2 + 5,
+      'text-anchor': spot.side > 0 ? 'start' : 'end'}, p.name));
   });
-  pts.forEach(p => {
-    const c = sv('circle', {class: `c-pt ${p.group.toLowerCase()}${p.cost_measured ? '' : ' est'}${p.name === selectedModel ? ' sel' : ''}`, cx: X(p.cost), cy: Y(p.acc), r: R});
-    c.append(sv('title', {}, `${p.name} · answer accuracy ${pct(p.acc)}% · ${usd(p.cost)} per query${p.cost_measured ? '' : ' (estimated)'}`));
-    c.addEventListener('click', () => { selectedModel = p.name; render(); });
-    svg.append(c);
+  // draw higher-accuracy chips last so they sit on top where they touch
+  [...pts].sort((a, b) => a.acc - b.acc).forEach(p => {
+    const x = X(p.cost), y = Y(p.acc);
+    const g = sv('g', {class: `c-mk ${p.group.toLowerCase()}${p.cost_measured ? '' : ' est'}${p.name === selectedModel ? ' sel' : ''}`});
+    g.append(sv('circle', {class: 'c-chip', cx: x, cy: y, r: R}));
+    const hit = LOGOS.find(([re]) => re.test(p.name));
+    if (hit) g.append(sv('image', {href: `assets/logos/${hit[1]}.svg`, x: x - LOGO / 2, y: y - LOGO / 2, width: LOGO, height: LOGO}));
+    g.append(sv('title', {}, `${p.name} · answer accuracy ${pct(p.acc)}% · ${usd(p.cost)} per query${p.cost_measured ? '' : ' (estimated)'}`));
+    g.addEventListener('click', () => { selectedModel = p.name; render(); });
+    svg.append(g);
   });
   box.append(svg);
   if (narrow) {
