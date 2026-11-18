@@ -29,6 +29,7 @@ function setHeading(h, label, q) { h.replaceChildren(el('span', 'ch-sub', label)
 function niceMax(v, step) { return Math.max(step, Math.ceil(v / step) * step); }
 
 function render() {
+  if (typeof renderCost === 'function' && dataset) setTimeout(renderCost, 0);
   if (!dataset) return;
   // the table shows LLM-judge or routing F1 per slice; API calls always has its own column
   ['calls', 'all'].forEach(v => { const o = metric.querySelector(`option[value="${v}"]`); o.disabled = o.hidden = view === 'table'; });
@@ -102,7 +103,7 @@ function render() {
     // dumbbell: LLM-judge and routing F1 share one 0-1 axis (accuracy 51.1% = 0.511); API calls get their own column and scale
     setHeading(heading, `All metrics · ${slice.options[slice.selectedIndex].text}`, 'Answer accuracy, source routing, and efficiency at a glance');
     direction.textContent = 'EFFICIENCY: OVERALL ONLY';
-    legend.innerHTML = '<span class="lg-dot lg-judge"><i></i>Answer accuracy</span><span class="lg-dot lg-f1"><i></i>Source routing F1</span><span><i></i>Open-source</span><span class="legend-proprietary"><i></i>Proprietary</span>';
+    legend.innerHTML = '<span class="lg-dot lg-judge"><i></i>Answer accuracy</span><span class="lg-dot lg-f1"><i></i>Source routing F1</span>';
     const J = r => r.judge[index], F = r => r.f1[index];
     // dot plot, so the axis need not start at zero: fit it to the data in 0.1 steps
     const sv = rows.flatMap(r => [J(r), F(r)]);
@@ -127,7 +128,8 @@ function render() {
       if (Math.abs(j - f) < (hi - lo) * 0.025) { dj.classList.add('up'); df.classList.add('down'); }
       plot.append(line, dj, df);
       const cc = el('div', 'mm-cell db-calls'); cc.title = `${r.name} · efficiency: ${r.calls.toFixed(2)} LLM calls per query`;
-      const track = el('div', 'm-track'); const bar = el('i', 'm-bar ' + r.group.toLowerCase());
+      // efficiency bars share one colour here; the open-source/proprietary split is shown elsewhere
+      const track = el('div', 'm-track'); const bar = el('i', 'm-bar db-cbar');
       bar.style.width = `${r.calls / cmax * 100}%`; track.append(bar);
       cc.append(track, el('b', r.calls === bestC ? 'mm-best' : '', r.calls.toFixed(2)));
       const nj = el('b', 'db-num db-vj' + (j === bestJ ? ' mm-best' : ''), pct(j) + '%');
@@ -202,7 +204,88 @@ document.querySelectorAll('.res-tabs [data-view]').forEach(b => b.addEventListen
   render();
 }));
 NARROW.addEventListener('change', render);
-let resizeTimer; window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (dataset) render(); }, 150); });
+let resizeTimer; window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (dataset) { render(); renderCost(); } }, 150); });
 metric.addEventListener('change', render); slice.addEventListener('change', render);
-fetch('results.json').then(r => { if (!r.ok) throw Error('Data unavailable'); return r.json(); }).then(d => { dataset = d; render(); }).catch(() => { document.querySelector('#chart').innerHTML = '<p>Results could not load. <a href="https://arxiv.org/pdf/2610.25096v2">View the published tables in the paper ↗</a></p>'; });
+fetch('results.json').then(r => { if (!r.ok) throw Error('Data unavailable'); return r.json(); }).then(d => { dataset = d; render(); renderCost(); }).catch(() => { document.querySelector('#chart').innerHTML = '<p>Results could not load. <a href="https://arxiv.org/pdf/2610.25096v2">View the published tables in the paper ↗</a></p>'; });
 document.querySelector('#copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(document.querySelector('#bib').textContent); document.querySelector('#copy-status').textContent = 'BibTeX copied.'; } catch { const range = document.createRange(); range.selectNodeContents(document.querySelector('#bib')); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); document.querySelector('#copy-status').textContent = 'Citation selected. Press Ctrl+C (or ⌘C) to copy.'; } });
+
+// Answer accuracy vs. cost per query: log-x scatter with Pareto frontier and attractive quadrant.
+const SVGNS = 'http://www.w3.org/2000/svg';
+function sv(tag, attrs, text) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; return e; }
+function median(a) { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function usd(v) { return v >= 0.1 ? '$' + v.toFixed(2) : v >= 0.01 ? '$' + v.toFixed(3) : '$' + v.toFixed(4); }
+function renderCost() {
+  const box = document.querySelector('#cost-chart');
+  if (!box || !dataset) return;
+  const pts = dataset.models.filter(m => typeof m.cost === 'number').map(m => ({...m, acc: m.judge[5]}));
+  box.replaceChildren();
+  if (!pts.length) return;
+  const W = Math.max(320, box.clientWidth), narrow = W < 640;
+  const H = narrow ? 560 : 470, M = {l: narrow ? 52 : 56, r: narrow ? 8 : 24, t: 14, b: narrow ? 44 : 52};
+  const lx0 = Math.log10(Math.min(...pts.map(p => p.cost)) / 1.6), lx1 = Math.log10(Math.max(...pts.map(p => p.cost)) * 1.6);
+  const y0 = Math.max(0, Math.floor((Math.min(...pts.map(p => p.acc)) - 0.03) * 10) / 10), y1 = Math.min(1, Math.ceil((Math.max(...pts.map(p => p.acc)) + 0.03) * 10) / 10);
+  const X = v => M.l + (Math.log10(v) - lx0) / (lx1 - lx0) * (W - M.l - M.r);
+  const Y = v => M.t + (1 - (v - y0) / (y1 - y0)) * (H - M.t - M.b);
+  const svg = sv('svg', {viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Scatter plot of answer accuracy against cost per query for each LLM backbone'});
+  // quadrant: cheaper and more accurate than the median backbone
+  const mc = median(pts.map(p => p.cost)), ma = median(pts.map(p => p.acc));
+  svg.append(sv('rect', {class: 'c-quad', x: M.l, y: M.t, width: X(mc) - M.l, height: Y(ma) - M.t}));
+  // grid + axes
+  const gy = sv('g', {class: 'cy-axis'});
+  for (let v = y0; v <= y1 + 1e-9; v += 0.05) {
+    const y = Y(v); svg.append(sv('line', {class: 'c-grid', x1: M.l, x2: W - M.r, y1: y, y2: y}));
+    gy.append(sv('text', {x: M.l - 8, y: y + 4, 'text-anchor': 'end'}, Math.round(v * 100) + '%'));
+  }
+  const gx = sv('g', {class: 'cx-axis'});
+  for (let e = Math.floor(lx0); e <= Math.ceil(lx1); e++) [1, 2, 5].forEach(k => {
+    const v = k * 10 ** e; if (Math.log10(v) < lx0 || Math.log10(v) > lx1) return;
+    if (narrow && k === 2) return;
+    const x = X(v); svg.append(sv('line', {class: 'c-grid', x1: x, x2: x, y1: M.t, y2: H - M.b}));
+    gx.append(sv('text', {x, y: H - M.b + 18, 'text-anchor': 'middle'}, '$' + (v >= 1 ? v : +v.toPrecision(1))));
+  });
+  svg.append(gy, gx);
+  svg.append(sv('text', {class: 'cx-title', x: (M.l + W - M.r) / 2, y: H - 8, 'text-anchor': 'middle'}, 'Cost per query (USD, log scale)'));
+  svg.append(sv('text', {class: 'cy-title', x: -(M.t + H - M.b) / 2, y: narrow ? 10 : 13, transform: 'rotate(-90)', 'text-anchor': 'middle'}, 'Answer accuracy'));
+  // Pareto frontier: best accuracy reachable at or below each cost
+  const byCost = [...pts].sort((a, b) => a.cost - b.cost); let best = -1; const front = [];
+  byCost.forEach(p => { if (p.acc > best) { best = p.acc; front.push(p); } });
+  svg.append(sv('polyline', {class: 'c-pareto', points: front.map(p => `${X(p.cost)},${Y(p.acc)}`).join(' ')}));
+  // points first, then labels placed to avoid both other labels and points
+  const R = narrow ? 4.5 : 6.5, LH = narrow ? 14 : 15, CW = narrow ? 6.4 : 7;
+  const boxes = pts.map(p => ({x: X(p.cost) - R - 2, y: Y(p.acc) - R - 2, w: 2 * R + 4, h: 2 * R + 4}));
+  const hits = b => boxes.some(o => b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y);
+  const inside = b => b.x >= M.l && b.x + b.w <= W - M.r && b.y >= M.t && b.y + b.h <= H - M.b;
+  const labels = [];
+  [...pts].sort((a, b) => b.acc - a.acc).forEach(p => {
+    const x = X(p.cost), y = Y(p.acc), lw = p.name.length * CW;
+    // candidate spots: right/left of the point, then stepping down/up
+    const cands = [];
+    for (const dy of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5]) for (const side of [1, -1])
+      cands.push({side, x: side > 0 ? x + R + 4 : x - R - 4 - lw, y: y - LH / 2 + dy * LH, w: lw, h: LH});
+    const spot = cands.find(b => inside(b) && !hits(b)) || cands[0];
+    boxes.push(spot);
+    labels.push({p, x, y, spot});
+  });
+  if (!narrow) labels.forEach(({p, x, y, spot}) => {
+    const ty = spot.y + spot.h / 2 + 4, tx = spot.side > 0 ? spot.x : spot.x + spot.w;
+    if (Math.abs(spot.y + spot.h / 2 - y) > 2) svg.append(sv('line', {class: 'c-lead', x1: x, y1: y, x2: spot.side > 0 ? spot.x - 1 : spot.x + spot.w + 1, y2: spot.y + spot.h / 2}));
+    svg.append(sv('text', {class: 'c-lab', x: tx, y: ty, 'text-anchor': spot.side > 0 ? 'start' : 'end'}, p.name));
+  });
+  pts.forEach(p => {
+    const c = sv('circle', {class: `c-pt ${p.group.toLowerCase()}${p.cost_measured ? '' : ' est'}${p.name === selectedModel ? ' sel' : ''}`, cx: X(p.cost), cy: Y(p.acc), r: R});
+    c.append(sv('title', {}, `${p.name} · answer accuracy ${pct(p.acc)}% · ${usd(p.cost)} per query${p.cost_measured ? '' : ' (estimated)'}`));
+    c.addEventListener('click', () => { selectedModel = p.name; render(); });
+    svg.append(c);
+  });
+  box.append(svg);
+  if (narrow) {
+    // phones: names would collide in the dense middle, so list them under the chart instead
+    const list = el('ol', 'cost-list');
+    [...pts].sort((a, b) => b.acc - a.acc).forEach(p => {
+      const li = el('li'); const dot = el('i', `${p.group.toLowerCase()}${p.cost_measured ? '' : ' est'}`);
+      li.append(dot, el('span', 'cl-name', p.name), el('span', 'cl-val', `${pct(p.acc)}% · ${usd(p.cost)}${p.cost_measured ? '' : '*'}`));
+      list.append(li);
+    });
+    box.append(list, el('p', 'cost-list-note', '* estimated cost'));
+  }
+}
